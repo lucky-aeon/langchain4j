@@ -161,7 +161,7 @@ public class DefaultMcpClient implements McpClient {
         }
     }
 
-    private ToolExecutionRequest tryFormat(ToolExecutionRequest executionRequest){
+    private ToolExecutionRequest processFormat(ToolExecutionRequest executionRequest){
         String args = executionRequest.arguments();
         if (isNullOrBlank(args)) {
             args = "{}";
@@ -169,7 +169,10 @@ public class DefaultMcpClient implements McpClient {
         if(args.startsWith("{") && !args.endsWith("}")){
             args += "}";
         }
-        ToolExecutionRequest.Builder builder = ToolExecutionRequest.builder().id(executionRequest.id()).name(executionRequest.name()).arguments(args);
+        ToolExecutionRequest.Builder builder = ToolExecutionRequest.builder()
+                .id(executionRequest.id())
+                .name(executionRequest.name())
+                .arguments(args);
         return builder.build();
     }
 
@@ -177,8 +180,8 @@ public class DefaultMcpClient implements McpClient {
     public String executeTool(ToolExecutionRequest executionRequest) {
         ObjectNode arguments = null;
         try {
-           executionRequest = this.tryFormat(executionRequest);
-            arguments = OBJECT_MAPPER.readValue(executionRequest.arguments(), ObjectNode.class);
+           executionRequest = this.processFormat(executionRequest);
+           arguments = OBJECT_MAPPER.readValue(executionRequest.arguments(), ObjectNode.class);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
