@@ -3,6 +3,8 @@ package dev.langchain4j.mcp;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.internal.Utils;
 import dev.langchain4j.mcp.client.McpClient;
+import dev.langchain4j.mcp.client.McpToolPostInterceptor;
+import dev.langchain4j.mcp.client.McpToolPreInterceptor;
 import dev.langchain4j.service.tool.ToolProvider;
 import dev.langchain4j.service.tool.ToolProviderRequest;
 import dev.langchain4j.service.tool.ToolProviderResult;
@@ -19,11 +21,17 @@ public class McpToolProvider implements ToolProvider {
 
     private final List<McpClient> mcpClients;
     private final boolean failIfOneServerFails;
+
+    private final McpToolPreInterceptor preInterceptor;
+
+    private final McpToolPostInterceptor postInterceptor;
     private static final Logger log = LoggerFactory.getLogger(McpToolProvider.class);
 
     private McpToolProvider(Builder builder) {
         this.mcpClients = new ArrayList<>(builder.mcpClients);
         this.failIfOneServerFails = Utils.getOrDefault(builder.failIfOneServerFails, false);
+        this.preInterceptor = builder.preInterceptor;
+        this.postInterceptor = builder().postInterceptor;
     }
 
     @Override
@@ -32,9 +40,15 @@ public class McpToolProvider implements ToolProvider {
         for (McpClient mcpClient : mcpClients) {
             try {
                 List<ToolSpecification> toolSpecifications = mcpClient.listTools();
+                if (preInterceptor != null) {
+                    preInterceptor.beforeAddTool(mcpClient, toolSpecifications);
+                }
                 for (ToolSpecification toolSpecification : toolSpecifications) {
                     builder.add(
                             toolSpecification, (executionRequest, memoryId) -> mcpClient.executeTool(executionRequest));
+                }
+                if (postInterceptor != null) {
+                    postInterceptor.afterToolsAdded(mcpClient, toolSpecifications);
                 }
             } catch (Exception e) {
                 if (failIfOneServerFails) {
@@ -55,6 +69,25 @@ public class McpToolProvider implements ToolProvider {
 
         private List<McpClient> mcpClients;
         private Boolean failIfOneServerFails;
+        private McpToolPreInterceptor preInterceptor;
+
+        private McpToolPostInterceptor postInterceptor;
+
+        /**
+         * aad a preInterceptor befor sending request to MCP server
+         */
+        public Builder addPreInterceptor(McpToolPreInterceptor preInterceptor) {
+            this.preInterceptor = preInterceptor;
+            return this;
+        }
+
+        /**
+         * aad a postInterceptor after receiving response from MCP server
+         */
+        public Builder addPosInterceptor(McpToolPostInterceptor postInterceptor) {
+            this.postInterceptor = postInterceptor;
+            return this;
+        }
 
         /**
          * The list of MCP clients to use for retrieving tools.
