@@ -31,7 +31,7 @@ public class McpToolProvider implements ToolProvider {
         this.mcpClients = new ArrayList<>(builder.mcpClients);
         this.failIfOneServerFails = Utils.getOrDefault(builder.failIfOneServerFails, false);
         this.preInterceptor = builder.preInterceptor;
-        this.postInterceptor = builder().postInterceptor;
+        this.postInterceptor = builder.postInterceptor;
     }
 
     @Override
