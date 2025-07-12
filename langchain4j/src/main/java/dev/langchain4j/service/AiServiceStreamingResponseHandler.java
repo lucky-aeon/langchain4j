@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 import static dev.langchain4j.internal.Utils.copy;
@@ -40,6 +41,12 @@ class AiServiceStreamingResponseHandler implements StreamingChatResponseHandler 
     private final Consumer<ChatResponse> completeResponseHandler;
 
     private final Consumer<Throwable> errorHandler;
+    
+    // Reasoning-related handlers
+    private final Consumer<String> partialReasoningHandler;
+    private final Consumer<String> completeReasoningHandler;
+    private final BiFunction<String, Object, Boolean> reasoningDetector;
+    private final String reasoningJsonPath;
 
     private final List<ChatMessage> temporaryMemory;
     private final TokenUsage tokenUsage;
@@ -57,6 +64,25 @@ class AiServiceStreamingResponseHandler implements StreamingChatResponseHandler 
                                       TokenUsage tokenUsage,
                                       List<ToolSpecification> toolSpecifications,
                                       Map<String, ToolExecutor> toolExecutors) {
+        this(context, memoryId, partialResponseHandler, toolExecutionHandler, completeResponseHandler,
+             errorHandler, temporaryMemory, tokenUsage, toolSpecifications, toolExecutors,
+             null, null, null, null);
+    }
+
+    AiServiceStreamingResponseHandler(AiServiceContext context,
+                                      Object memoryId,
+                                      Consumer<String> partialResponseHandler,
+                                      Consumer<ToolExecution> toolExecutionHandler,
+                                      Consumer<ChatResponse> completeResponseHandler,
+                                      Consumer<Throwable> errorHandler,
+                                      List<ChatMessage> temporaryMemory,
+                                      TokenUsage tokenUsage,
+                                      List<ToolSpecification> toolSpecifications,
+                                      Map<String, ToolExecutor> toolExecutors,
+                                      Consumer<String> partialReasoningHandler,
+                                      Consumer<String> completeReasoningHandler,
+                                      BiFunction<String, Object, Boolean> reasoningDetector,
+                                      String reasoningJsonPath) {
         this.context = ensureNotNull(context, "context");
         this.memoryId = ensureNotNull(memoryId, "memoryId");
 
@@ -64,6 +90,11 @@ class AiServiceStreamingResponseHandler implements StreamingChatResponseHandler 
         this.completeResponseHandler = completeResponseHandler;
         this.toolExecutionHandler = toolExecutionHandler;
         this.errorHandler = errorHandler;
+
+        this.partialReasoningHandler = partialReasoningHandler;
+        this.completeReasoningHandler = completeReasoningHandler;
+        this.reasoningDetector = reasoningDetector;
+        this.reasoningJsonPath = reasoningJsonPath;
 
         this.temporaryMemory = new ArrayList<>(temporaryMemory);
         this.tokenUsage = ensureNotNull(tokenUsage, "tokenUsage");
@@ -75,6 +106,20 @@ class AiServiceStreamingResponseHandler implements StreamingChatResponseHandler 
     @Override
     public void onPartialResponse(String partialResponse) {
         partialResponseHandler.accept(partialResponse);
+    }
+
+    @Override
+    public void onPartialReasoning(String partialReasoning) {
+        if (partialReasoningHandler != null) {
+            partialReasoningHandler.accept(partialReasoning);
+        }
+    }
+
+    @Override
+    public void onCompleteReasoning(String completeReasoning) {
+        if (completeReasoningHandler != null) {
+            completeReasoningHandler.accept(completeReasoning);
+        }
     }
 
     @Override

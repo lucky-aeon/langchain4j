@@ -14,6 +14,7 @@ import dev.langchain4j.service.tool.ToolExecutor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 import static dev.langchain4j.internal.Utils.copy;
@@ -36,6 +37,12 @@ public class AiServiceTokenStream implements TokenStream {
     private Consumer<ToolExecution> toolExecutionHandler;
     private Consumer<ChatResponse> completeResponseHandler;
     private Consumer<Throwable> errorHandler;
+    
+    // Reasoning-related handlers
+    private Consumer<String> partialReasoningHandler;
+    private Consumer<String> completeReasoningHandler;
+    private BiFunction<String, Object, Boolean> reasoningDetector;
+    private String reasoningJsonPath;
 
     private int onPartialResponseInvoked;
     private int onCompleteResponseInvoked;
@@ -102,6 +109,25 @@ public class AiServiceTokenStream implements TokenStream {
     }
 
     @Override
+    public TokenStream onPartialReasoning(Consumer<String> partialReasoningHandler) {
+        this.partialReasoningHandler = partialReasoningHandler;
+        return this;
+    }
+
+    @Override
+    public TokenStream onCompleteReasoning(Consumer<String> completeReasoningHandler) {
+        this.completeReasoningHandler = completeReasoningHandler;
+        return this;
+    }
+
+    @Override
+    public TokenStream onReasoningDetected(BiFunction<String, Object, Boolean> reasoningDetector, String jsonPath) {
+        this.reasoningDetector = reasoningDetector;
+        this.reasoningJsonPath = jsonPath;
+        return this;
+    }
+
+    @Override
     public void start() {
         validateConfiguration();
 
@@ -120,7 +146,11 @@ public class AiServiceTokenStream implements TokenStream {
                 initTemporaryMemory(context, messages),
                 new TokenUsage(),
                 toolSpecifications,
-                toolExecutors);
+                toolExecutors,
+                partialReasoningHandler,
+                completeReasoningHandler,
+                reasoningDetector,
+                reasoningJsonPath);
 
         if (contentsHandler != null && retrievedContents != null) {
             contentsHandler.accept(retrievedContents);

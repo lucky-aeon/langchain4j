@@ -5,6 +5,7 @@ import dev.langchain4j.rag.RetrievalAugmentor;
 import dev.langchain4j.rag.content.Content;
 import dev.langchain4j.service.tool.ToolExecution;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 /**
@@ -51,6 +52,37 @@ public interface TokenStream {
      * @return token stream instance used to configure or start stream processing
      */
     TokenStream onCompleteResponse(Consumer<ChatResponse> completeResponseHandler);
+
+    /**
+     * The provided consumer will be invoked every time a new partial reasoning/thinking content
+     * from a language model is available (for models that support reasoning chains like OpenAI o1 series).
+     *
+     * @param partialReasoningHandler lambda that will be invoked when a model generates new partial reasoning content
+     * @return token stream instance used to configure or start stream processing
+     */
+    TokenStream onPartialReasoning(Consumer<String> partialReasoningHandler);
+
+    /**
+     * The provided handler will be invoked when a language model finishes streaming reasoning content.
+     * This contains the complete reasoning/thinking process for models that support it.
+     *
+     * @param completeReasoningHandler lambda that will be invoked when language model finishes reasoning
+     * @return token stream instance used to configure or start stream processing
+     */
+    TokenStream onCompleteReasoning(Consumer<String> completeReasoningHandler);
+
+    /**
+     * Sets a custom function to determine if the current data chunk represents reasoning content.
+     * This allows you to define your own logic based on JSONPath expressions and raw model data.
+     *
+     * @param reasoningDetector A BiFunction where:
+     *                         - First parameter: JSONPath expression to extract data (e.g., "$.reasoning_content")
+     *                         - Second parameter: The complete response data from the model
+     *                         - Returns: true if this chunk represents reasoning content, false otherwise
+     * @param jsonPath The JSONPath expression used to extract reasoning content
+     * @return token stream instance used to configure or start stream processing
+     */
+    TokenStream onReasoningDetected(BiFunction<String, Object, Boolean> reasoningDetector, String jsonPath);
 
     /**
      * The provided consumer will be invoked when an error occurs during streaming.
