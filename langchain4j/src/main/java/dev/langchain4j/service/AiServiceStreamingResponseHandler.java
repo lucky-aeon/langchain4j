@@ -122,6 +122,56 @@ class AiServiceStreamingResponseHandler implements StreamingChatResponseHandler 
         }
     }
 
+    /**
+     * Process raw data chunk and determine if it's reasoning or regular response.
+     * This method should be called by the model implementation to handle raw chunks.
+     */
+    public void processRawChunk(Object rawData) {
+        if (reasoningDetector != null && reasoningJsonPath != null) {
+            try {
+                boolean isReasoning = reasoningDetector.apply(reasoningJsonPath, rawData);
+                if (isReasoning) {
+                    // Extract reasoning content from raw data
+                    String reasoningContent = extractContentFromRawData(rawData, true);
+                    if (reasoningContent != null && !reasoningContent.isEmpty()) {
+                        onPartialReasoning(reasoningContent);
+                    }
+                } else {
+                    // Extract regular response content from raw data
+                    String responseContent = extractContentFromRawData(rawData, false);
+                    if (responseContent != null && !responseContent.isEmpty()) {
+                        onPartialResponse(responseContent);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Error processing raw chunk", e);
+            }
+        }
+    }
+
+    /**
+     * Extract content from raw data based on whether it's reasoning or not.
+     * Override this method to customize content extraction logic.
+     */
+    protected String extractContentFromRawData(Object rawData, boolean isReasoning) {
+        // This is a basic implementation - models should override this
+        if (rawData != null) {
+            String dataStr = rawData.toString();
+            if (isReasoning) {
+                // Try to extract reasoning content using simple string matching
+                // This is a fallback - models should provide better implementation
+                if (dataStr.contains("reasoning_content")) {
+                    // Simple extraction logic
+                    return dataStr; // Models should implement proper extraction
+                }
+            } else {
+                // Try to extract regular content
+                return dataStr; // Models should implement proper extraction
+            }
+        }
+        return null;
+    }
+
     @Override
     public void onCompleteResponse(ChatResponse completeResponse) {
 

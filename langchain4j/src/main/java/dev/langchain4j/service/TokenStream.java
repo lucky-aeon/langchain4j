@@ -85,6 +85,16 @@ public interface TokenStream {
     TokenStream onReasoningDetected(BiFunction<String, Object, Boolean> reasoningDetector, String jsonPath);
 
     /**
+     * Process a raw data chunk from the model and automatically route it to the appropriate handler
+     * based on the reasoning detection logic.
+     * 
+     * @param rawData The raw response data from the model (typically a JSON object)
+     */
+    default void processRawData(Object rawData) {
+        // Default implementation does nothing - implementations should override if needed
+    }
+
+    /**
      * The provided consumer will be invoked when an error occurs during streaming.
      *
      * @param errorHandler lambda that will be invoked when an error occurs
