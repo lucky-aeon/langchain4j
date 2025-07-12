@@ -8,6 +8,7 @@ import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.request.ChatRequestParameters;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
+import dev.langchain4j.model.chat.response.ReasoningAwareStreamingChatResponseHandler;
 
 import java.util.List;
 import java.util.Map;
@@ -49,9 +50,19 @@ public interface StreamingChatModel {
             }
 
             @Override
+            public void onPartialReasoning(String partialReasoning) {
+                handler.onPartialReasoning(partialReasoning);
+            }
+
+            @Override
             public void onCompleteResponse(ChatResponse completeResponse) {
                 onResponse(completeResponse, finalChatRequest, provider(), attributes, listeners);
                 handler.onCompleteResponse(completeResponse);
+            }
+
+            @Override
+            public void onCompleteReasoning(String completeReasoning) {
+                handler.onCompleteReasoning(completeReasoning);
             }
 
             @Override
@@ -97,6 +108,47 @@ public interface StreamingChatModel {
                 .build();
 
         chat(chatRequest, handler);
+    }
+
+    /**
+     * Chat with custom reasoning detection logic.
+     *
+     * @param chatRequest a {@link ChatRequest}, containing all the inputs to the LLM
+     * @param handler     a {@link ReasoningAwareStreamingChatResponseHandler} that will handle streaming response with custom reasoning detection
+     */
+    default void chatWithReasoningAware(ChatRequest chatRequest, ReasoningAwareStreamingChatResponseHandler handler) {
+        // Delegate to the regular chat method, as the reasoning-aware handler extends the regular handler
+        chat(chatRequest, handler);
+    }
+
+    /**
+     * Chat with custom reasoning detection logic using a simple user message.
+     *
+     * @param userMessage a user message
+     * @param handler     a {@link ReasoningAwareStreamingChatResponseHandler} that will handle streaming response with custom reasoning detection
+     */
+    default void chatWithReasoningAware(String userMessage, ReasoningAwareStreamingChatResponseHandler handler) {
+
+        ChatRequest chatRequest = ChatRequest.builder()
+                .messages(UserMessage.from(userMessage))
+                .build();
+
+        chatWithReasoningAware(chatRequest, handler);
+    }
+
+    /**
+     * Chat with custom reasoning detection logic using a list of messages.
+     *
+     * @param messages a list of messages
+     * @param handler  a {@link ReasoningAwareStreamingChatResponseHandler} that will handle streaming response with custom reasoning detection
+     */
+    default void chatWithReasoningAware(List<ChatMessage> messages, ReasoningAwareStreamingChatResponseHandler handler) {
+
+        ChatRequest chatRequest = ChatRequest.builder()
+                .messages(messages)
+                .build();
+
+        chatWithReasoningAware(chatRequest, handler);
     }
 
     default Set<Capability> supportedCapabilities() {
