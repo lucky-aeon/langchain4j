@@ -115,10 +115,14 @@ class AiServiceStreamingResponseHandler implements StreamingChatResponseHandler 
      * This method is called with the original raw data before any processing.
      */
     public void onRawData(Object rawData) {
+        System.out.println("DEBUG: onRawData called with data: " + (rawData != null ? rawData.getClass().getSimpleName() : "null"));
+        
         // If reasoning detection is configured, automatically route the response
         if (reasoningDetector != null && reasoningJsonPath != null) {
+            System.out.println("DEBUG: Reasoning detector configured, calling detection function");
             try {
                 boolean isReasoning = reasoningDetector.apply(reasoningJsonPath, rawData);
+                System.out.println("DEBUG: Detection result: " + isReasoning);
                 if (isReasoning) {
                     // Extract reasoning content from raw data and send to reasoning handler
                     String reasoningContent = extractReasoningFromRawData(rawData);
@@ -131,6 +135,8 @@ class AiServiceStreamingResponseHandler implements StreamingChatResponseHandler 
             } catch (Exception e) {
                 log.warn("Error in reasoning detection, processing as normal response", e);
             }
+        } else {
+            System.out.println("DEBUG: No reasoning detector configured");
         }
         
         // If not reasoning content, extract regular response and process normally

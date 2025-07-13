@@ -164,24 +164,21 @@ public class OpenAiStreamingChatModel implements StreamingChatModel {
             return;
         }
 
-        // First, call onRawData with the original response for custom detection
-        if (handler.getClass().getName().contains("AiServiceStreamingResponseHandler")) {
-            try {
-                java.lang.reflect.Method onRawDataMethod = handler.getClass().getMethod("onRawData", Object.class);
-                onRawDataMethod.invoke(handler, partialResponse);
-            } catch (Exception e) {
-                // Handler doesn't support onRawData, fall back to standard processing
-                String content = delta.content();
-                if (!isNullOrEmpty(content)) {
-                    handler.onPartialResponse(content);
-                }
-            }
-        } else {
-            // For regular handlers, fall back to standard processing
-            String content = delta.content();
-            if (!isNullOrEmpty(content)) {
-                handler.onPartialResponse(content);
-            }
+        // Extract content and reasoning from delta
+        String content = delta.content();
+        String reasoningContent = delta.reasoningContent();
+        String reasoning = delta.reasoning();
+        
+        // Handle reasoning content first
+        if (!isNullOrEmpty(reasoningContent)) {
+            handler.onPartialReasoning(reasoningContent);
+        } else if (!isNullOrEmpty(reasoning)) {
+            handler.onPartialReasoning(reasoning);
+        }
+        
+        // Handle regular content
+        if (!isNullOrEmpty(content)) {
+            handler.onPartialResponse(content);
         }
     }
 
