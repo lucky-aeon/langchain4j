@@ -105,7 +105,61 @@ class AiServiceStreamingResponseHandler implements StreamingChatResponseHandler 
 
     @Override
     public void onPartialResponse(String partialResponse) {
+        // This will only be called for non-AiService handlers
+        // AiService handlers use onRawData instead
         partialResponseHandler.accept(partialResponse);
+    }
+
+    /**
+     * Handle raw data from the streaming response for reasoning detection.
+     * This method is called with the original raw data before any processing.
+     */
+    public void onRawData(Object rawData) {
+        // If reasoning detection is configured, automatically route the response
+        if (reasoningDetector != null && reasoningJsonPath != null) {
+            try {
+                boolean isReasoning = reasoningDetector.apply(reasoningJsonPath, rawData);
+                if (isReasoning) {
+                    // Extract reasoning content from raw data and send to reasoning handler
+                    String reasoningContent = extractReasoningFromRawData(rawData);
+                    if (reasoningContent != null && !reasoningContent.isEmpty() && partialReasoningHandler != null) {
+                        partialReasoningHandler.accept(reasoningContent);
+                    }
+                    // Don't call normal handler for reasoning content
+                    return;
+                }
+            } catch (Exception e) {
+                log.warn("Error in reasoning detection, processing as normal response", e);
+            }
+        }
+        
+        // If not reasoning content, extract regular response and process normally
+        String responseContent = extractResponseFromRawData(rawData);
+        if (responseContent != null && !responseContent.isEmpty()) {
+            partialResponseHandler.accept(responseContent);
+        }
+    }
+
+    /**
+     * Extract reasoning content from raw data. Override this in model implementations.
+     */
+    protected String extractReasoningFromRawData(Object rawData) {
+        // Default implementation - models should override this
+        if (rawData != null) {
+            return rawData.toString();
+        }
+        return null;
+    }
+
+    /**
+     * Extract regular response content from raw data. Override this in model implementations.
+     */
+    protected String extractResponseFromRawData(Object rawData) {
+        // Default implementation - models should override this
+        if (rawData != null) {
+            return rawData.toString();
+        }
+        return null;
     }
 
     @Override
@@ -120,56 +174,6 @@ class AiServiceStreamingResponseHandler implements StreamingChatResponseHandler 
         if (completeReasoningHandler != null) {
             completeReasoningHandler.accept(completeReasoning);
         }
-    }
-
-    /**
-     * Process raw data chunk and determine if it's reasoning or regular response.
-     * This method should be called by the model implementation to handle raw chunks.
-     */
-    public void processRawChunk(Object rawData) {
-        if (reasoningDetector != null && reasoningJsonPath != null) {
-            try {
-                boolean isReasoning = reasoningDetector.apply(reasoningJsonPath, rawData);
-                if (isReasoning) {
-                    // Extract reasoning content from raw data
-                    String reasoningContent = extractContentFromRawData(rawData, true);
-                    if (reasoningContent != null && !reasoningContent.isEmpty()) {
-                        onPartialReasoning(reasoningContent);
-                    }
-                } else {
-                    // Extract regular response content from raw data
-                    String responseContent = extractContentFromRawData(rawData, false);
-                    if (responseContent != null && !responseContent.isEmpty()) {
-                        onPartialResponse(responseContent);
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("Error processing raw chunk", e);
-            }
-        }
-    }
-
-    /**
-     * Extract content from raw data based on whether it's reasoning or not.
-     * Override this method to customize content extraction logic.
-     */
-    protected String extractContentFromRawData(Object rawData, boolean isReasoning) {
-        // This is a basic implementation - models should override this
-        if (rawData != null) {
-            String dataStr = rawData.toString();
-            if (isReasoning) {
-                // Try to extract reasoning content using simple string matching
-                // This is a fallback - models should provide better implementation
-                if (dataStr.contains("reasoning_content")) {
-                    // Simple extraction logic
-                    return dataStr; // Models should implement proper extraction
-                }
-            } else {
-                // Try to extract regular content
-                return dataStr; // Models should implement proper extraction
-            }
-        }
-        return null;
     }
 
     @Override

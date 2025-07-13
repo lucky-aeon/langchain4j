@@ -164,9 +164,15 @@ public class OpenAiStreamingChatModel implements StreamingChatModel {
             return;
         }
 
-        String content = delta.content();
-        if (!isNullOrEmpty(content)) {
-            handler.onPartialResponse(content);
+        // First, call onRawData with the original response for custom detection
+        if (handler instanceof dev.langchain4j.service.AiServiceStreamingResponseHandler) {
+            ((dev.langchain4j.service.AiServiceStreamingResponseHandler) handler).onRawData(partialResponse);
+        } else {
+            // For regular handlers, fall back to standard processing
+            String content = delta.content();
+            if (!isNullOrEmpty(content)) {
+                handler.onPartialResponse(content);
+            }
         }
     }
 

@@ -38,8 +38,9 @@ public class AiServiceTokenStream implements TokenStream {
     private Consumer<ChatResponse> completeResponseHandler;
     private Consumer<Throwable> errorHandler;
     
-    // Reasoning-related handlers
-    private Consumer<String> partialReasoningHandler;
+    // Store original handlers and reasoning config
+    private Consumer<String> originalPartialResponseHandler;
+    private Consumer<String> originalPartialReasoningHandler;
     private Consumer<String> completeReasoningHandler;
     private BiFunction<String, Object, Boolean> reasoningDetector;
     private String reasoningJsonPath;
@@ -68,7 +69,7 @@ public class AiServiceTokenStream implements TokenStream {
 
     @Override
     public TokenStream onPartialResponse(Consumer<String> partialResponseHandler) {
-        this.partialResponseHandler = partialResponseHandler;
+        this.originalPartialResponseHandler = partialResponseHandler;
         this.onPartialResponseInvoked++;
         return this;
     }
@@ -110,7 +111,7 @@ public class AiServiceTokenStream implements TokenStream {
 
     @Override
     public TokenStream onPartialReasoning(Consumer<String> partialReasoningHandler) {
-        this.partialReasoningHandler = partialReasoningHandler;
+        this.originalPartialReasoningHandler = partialReasoningHandler;
         return this;
     }
 
@@ -128,66 +129,6 @@ public class AiServiceTokenStream implements TokenStream {
     }
 
     @Override
-    public void processRawData(Object rawData) {
-        if (reasoningDetector != null && reasoningJsonPath != null) {
-            try {
-                boolean isReasoning = reasoningDetector.apply(reasoningJsonPath, rawData);
-                if (isReasoning) {
-                    // Extract reasoning content from raw data
-                    String reasoningContent = extractReasoningContent(rawData);
-                    if (reasoningContent != null && !reasoningContent.isEmpty()) {
-                        if (partialReasoningHandler != null) {
-                            partialReasoningHandler.accept(reasoningContent);
-                        }
-                    }
-                } else {
-                    // Extract regular response content from raw data
-                    String responseContent = extractResponseContent(rawData);
-                    if (responseContent != null && !responseContent.isEmpty()) {
-                        if (partialResponseHandler != null) {
-                            partialResponseHandler.accept(responseContent);
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                // Log error but don't fail the stream
-                if (errorHandler != null) {
-                    errorHandler.accept(e);
-                }
-            }
-        }
-    }
-
-    /**
-     * Extract reasoning content from raw data. Override this method to customize extraction logic.
-     */
-    protected String extractReasoningContent(Object rawData) {
-        // This is a basic implementation - users should override this
-        if (rawData != null) {
-            String dataStr = rawData.toString();
-            // Try to extract reasoning content using simple string matching
-            if (dataStr.contains("reasoning_content")) {
-                // Simple extraction logic - users should implement proper JSON parsing
-                return dataStr;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Extract regular response content from raw data. Override this method to customize extraction logic.
-     */
-    protected String extractResponseContent(Object rawData) {
-        // This is a basic implementation - users should override this
-        if (rawData != null) {
-            String dataStr = rawData.toString();
-            // Try to extract regular content
-            return dataStr;
-        }
-        return null;
-    }
-
-    @Override
     public void start() {
         validateConfiguration();
 
@@ -199,7 +140,7 @@ public class AiServiceTokenStream implements TokenStream {
         StreamingChatResponseHandler handler = new AiServiceStreamingResponseHandler(
                 context,
                 memoryId,
-                partialResponseHandler,
+                originalPartialResponseHandler,
                 toolExecutionHandler,
                 completeResponseHandler,
                 errorHandler,
@@ -207,7 +148,7 @@ public class AiServiceTokenStream implements TokenStream {
                 new TokenUsage(),
                 toolSpecifications,
                 toolExecutors,
-                partialReasoningHandler,
+                originalPartialReasoningHandler,
                 completeReasoningHandler,
                 reasoningDetector,
                 reasoningJsonPath);

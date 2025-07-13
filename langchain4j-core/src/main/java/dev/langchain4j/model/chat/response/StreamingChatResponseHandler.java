@@ -50,6 +50,21 @@ public interface StreamingChatResponseHandler {
     }
 
     /**
+     * Invoked with raw data from the streaming response for custom processing.
+     * This method receives the original raw data before any processing, 
+     * allowing for custom reasoning detection and content extraction.
+     * 
+     * This is particularly useful for models that embed reasoning content
+     * in the raw streaming data that needs to be detected and separated
+     * from regular response content.
+     *
+     * @param rawData The raw data chunk from the streaming response
+     */
+    default void onRawData(Object rawData) {
+        // Default implementation does nothing
+    }
+
+    /**
      * This method is invoked when an error occurs during streaming.
      *
      * @param error The error that occurred
